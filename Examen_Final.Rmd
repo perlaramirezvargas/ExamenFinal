@@ -1,0 +1,193 @@
+---
+title: "Examen final"
+output: html_document
+date: "2024-07-13"
+---
+
+```{r}
+library(rio)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+# CASO 2 
+base_envíos <- import("C:/base_envíos.csv")
+summary(base_envíos)
+glimpse(base_envíos)
+
+# Primero evaluamos si la base de datos de envíos cumple con la norma ISO/IEC 25012
+# Evaluamos la completitud al revisar la cantidad de valores faltantes
+colSums(is.na(base_envíos))
+base_envíos <- base_envíos %>%
+  drop_na()
+
+# Para la consistencia, hacemos que todas las fechas estén en el formato 'YYYY-MM-DD'
+base_envíos <- base_envíos %>%
+  mutate(fecha_envío = parse_date_time(fecha_envío, orders = c("%Y-%m-%d", "%d-%m-%Y")),
+         fecha_entrega = as.Date(fecha_entrega, format = "%Y-%m-%d"))
+
+# Además, eliminamos aquellas filas donde la fecha de entrega es menor que la fecha de envío
+base_envíos <- base_envíos %>%
+  filter(fecha_entrega >= fecha_envío)
+
+# Nos aseguramos de que los valores en la columna id_envío sean positivos
+base_envíos <- base_envíos %>%
+  mutate(id_envío = abs(id_envío))
+
+
+# Ahora que ya hemos limpiado nuestra base de datos, creamos una variable
+# para la duración del envío
+base_envíos <- base_envíos %>%
+  mutate(duracion_envio = as.numeric(difftime(fecha_entrega, fecha_envío, units = "days")))
+
+
+# Agrupamos los envíos por región y calculamos la duración promedio del envío
+duracion_promedio_region <- base_envíos %>%
+  group_by(origen, destino) %>%
+  summarize(duracion_promedio = mean(duracion_envio, na.rm = TRUE))
+
+# Mostramos los resultados obtenidos
+print(duracion_promedio_region)
+glimpse(base_envíos)
+
+```
+ 
+ 
+```{r}
+# CASO 4
+base_polizas <- import("C:/base_polizas.csv")
+summary(base_polizas)
+glimpse(base_polizas)
+
+
+# Primero evaluamos si la base de datos de pólizas cumple con la norma ISO/IEC 25012
+# Evaluamos la completitud al revisar la cantidad de valores faltantes
+colSums(is.na(base_polizas))
+base_polizas <- base_polizas %>%
+  drop_na()
+
+# Para la consistencia, hacemos que todas las fechas estén en el formato 'YYYY-MM-DD'
+base_polizas <- base_polizas %>%
+  mutate(fecha_inicio = parse_date_time(fecha_inicio, orders = c("%Y-%m-%d", "%d-%m-%Y")),
+         fecha_fin = parse_date_time(fecha_fin, orders = c("%Y-%m-%d", "%d-%m-%Y")))
+
+# Además, eliminamos aquellas filas donde la fecha de inicio es mayor que la fecha de fin
+base_polizas <- base_polizas %>%
+  filter(fecha_fin >= fecha_inicio)
+
+# Nos aseguramos de que los valores en la columna id_poliza sean positivos
+base_polizas <- base_polizas %>%
+  mutate(id_poliza = abs(id_poliza))
+
+# Creamos una variable para la antigüedad de la póliza en años
+base_polizas <- base_polizas %>%
+  mutate(antiguedad_años = time_length(interval(fecha_inicio, fecha_fin), "years"))
+
+# Filtramos las pólizas activas
+polizas_activas <- base_polizas %>%
+  filter(estado == "Activa")
+
+# Mostramos el resultado
+print(polizas_activas)
+glimpse(base_envíos)
+```
+
+```{r}
+# CASO 8
+base_transacciones <- import("C:/base_transacciones.csv")
+summary(base_transacciones)
+glimpse(base_transacciones)
+
+
+# Vemos si la base de datos de transacciones cumple con la norma ISO/IEC 25012
+# Evaluamos la completitud al revisar la cantidad de valores faltantes
+colSums(is.na(base_transacciones))
+base_transacciones <- base_transacciones %>%
+  drop_na()
+
+# Para la consistencia, hacemos que todas las fechas estén en el formato 'YYYY-MM-DD'
+base_transacciones <- base_transacciones %>%
+  mutate(fecha_transaccion = parse_date_time(fecha_transaccion, orders = c("%Y-%m-%d", "%d-%m-%Y")))
+
+# Nos aseguramos de que los valores en la columna id_transaccion sean positivos
+base_transacciones <- base_transacciones %>%
+  mutate(id_transaccion = abs(id_transaccion))
+
+# Creamos una variable para la cantidad de días desde la última transacción
+base_transacciones <- base_transacciones %>%
+  mutate(dias_ultima_transaccion = as.numeric(difftime(Sys.Date(), fecha_transaccion, units = "days")))
+
+# Filtramos transacciones completadas
+transacciones_completadas <- base_transacciones %>%
+  filter(estado_transaccion == "Completada")
+
+# Identificamos transacciones con montos anormalmente altos
+umbral_monto_alto <- quantile(transacciones_completadas$monto, 0.95)
+transacciones_altas <- transacciones_completadas %>%
+  filter(monto > umbral_monto_alto)
+
+# Mostramos el resultado
+print(transacciones_altas)
+glimpse(base_transacciones)
+```
+
+```{r}
+# CASO 10
+base_registros_medicos <- import("C:/base_registros_medicos.csv")
+summary(base_registros_medicos)
+glimpse(base_registros_medicos)
+
+
+# Primero evaluamos si la base de datos de registros médicos cumple con la norma ISO/IEC 25012
+# Evaluamos la completitud al revisar la cantidad de valores faltantes
+colSums(is.na(base_registros_medicos))
+base_registros_medicos <- base_registros_medicos %>%
+  drop_na()
+
+# Para la consistencia, hacemos que todas las fechas estén en el formato 'YYYY-MM-DD'
+base_registros_medicos <- base_registros_medicos %>%
+mutate(fecha_admision = parse_date_time(fecha_admision, orders = c("%Y-%m-%d", "%d-%m-%Y")),
+       fecha_alta = parse_date_time(fecha_alta, orders = c("%Y-%m-%d", "%d-%m-%Y")))
+
+# Además, eliminamos aquellas filas donde la fecha de admisión es mayor que la fecha de alta
+base_registros_medicos <- base_registros_medicos %>%
+  filter(fecha_alta >= fecha_admision)
+
+# Nos aseguramos de que los valores en la columna id_registro sean positivos
+base_registros_medicos <- base_registros_medicos %>%
+  mutate(id_registro = abs(id_registro))
+
+
+# Creamos variables para la duración de la estadía y el mes de la admisión
+base_registros_medicos <- base_registros_medicos %>%
+  mutate(fecha_admision = as.Date(fecha_admision, format = "%Y-%m-%d"),
+         fecha_alta = as.Date(fecha_alta, format = "%Y-%m-%d"),
+         duracion_estadia = as.numeric(fecha_alta - fecha_admision),
+         mes_admision = month(fecha_admision, label = TRUE))
+
+# Filtramos registros de pacientes dados de alta
+registros_dados_alta <- base_registros_medicos %>%
+  filter(estado == "dado de alta")
+
+# Identificamos registros con duraciones de estadía anormalmente largas o cortas
+umbral_estadia_larga <- quantile(registros_dados_alta$duracion_estadia, 0.95)
+umbral_estadia_corta <- quantile(registros_dados_alta$duracion_estadia, 0.05)
+registros_anormales <- registros_dados_alta %>%
+  filter(duracion_estadia > umbral_estadia_larga | duracion_estadia < umbral_estadia_corta)
+
+# Detectamos pacientes con un número inusualmente alto de visitas en un corto período de tiempo
+visitas_por_paciente <- registros_dados_alta %>%
+  group_by(id_paciente) %>%
+  summarize(numero_visitas = n()) %>%
+  filter(numero_visitas > quantile(numero_visitas, 0.95))
+
+# Calculamos el valor total de los costos por paciente
+costos_por_paciente <- registros_dados_alta %>%
+  group_by(id_paciente) %>%
+  summarize(costo = sum(costo, na.rm = TRUE))
+
+# Mostramos el resultado
+print(costos_por_paciente)
+glimpse(base_registros_medicos)
+```
